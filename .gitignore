@@ -1,0 +1,12 @@
+node_modules/
+dist/
+playwright-report/
+test-results/
+.env
+.env.*
+!.env.example
+
+# Generated reference captures and original image masters are local-only.
+# The optimized assets needed by the site are stored in public/images/.
+/screenshots/
+/assets/source/

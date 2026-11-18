@@ -1,0 +1,29 @@
+{
+  "name": "leo-dev-portfolio",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "npm run build && playwright test && node --test tests/contact-handler.test.js",
+    "capture": "npm run build && node scripts/capture.mjs",
+    "optimize:images": "node scripts/optimize-images.mjs"
+  },
+  "dependencies": {
+    "gsap": "^3.14.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "autoprefixer": "^10.4.22",
+    "postcss": "^8.5.6",
+    "sharp": "^0.35.5",
+    "tailwindcss": "^3.4.17",
+    "vite": "^7.1.12"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "sharp@0.35.5": true
+  }
+}
