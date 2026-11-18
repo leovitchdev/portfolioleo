@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>Chargement de la page… | LEO DEV</title>
+  </head>
+  <body>
+    <p>Ouverture de la page demandée…</p>
+    <script>
+      (() => {
+        try {
+          sessionStorage.setItem('leo-dev:github-pages-route', JSON.stringify({
+            path: window.location.pathname,
+            search: window.location.search,
+            hash: window.location.hash,
+          }));
+        } catch {}
+        window.location.replace('/portfolioleo/');
+      })();
+    </script>
+    <noscript><p>Active JavaScript pour afficher cette page. <a href="/portfolioleo/">Retour à l’accueil</a></p></noscript>
+  </body>
+</html>

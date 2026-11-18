@@ -7,7 +7,8 @@ import { initMotion } from './animations.js';
 import { initContactForm } from './contact.js';
 
 const app = document.querySelector('#app');
-const path = normalizePath(window.location.pathname);
+const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
+const githubPagesRouteKey = 'leo-dev:github-pages-route';
 
 function normalizePath(value) {
   if (!value || value === '/') return '/';
@@ -18,6 +19,55 @@ function normalizePath(value) {
     return '/404';
   }
   return `/${decoded.replace(/^\/+|\/+$/g, '')}`;
+}
+
+function sitePath(value) {
+  if (!value?.startsWith('/') || value.startsWith('//') || !basePath) return value;
+  if (value === basePath || value.startsWith(`${basePath}/`)) return value;
+  return `${basePath}${value}`;
+}
+
+function currentRoutePath() {
+  try {
+    const savedRoute = sessionStorage.getItem(githubPagesRouteKey);
+    if (savedRoute) {
+      sessionStorage.removeItem(githubPagesRouteKey);
+      const original = JSON.parse(savedRoute);
+      let originalPath = original.path || '/';
+      if (basePath && (originalPath === basePath || originalPath.startsWith(`${basePath}/`))) {
+        originalPath = originalPath.slice(basePath.length) || '/';
+      }
+      const restoredUrl = `${sitePath(normalizePath(originalPath))}${original.search || ''}${original.hash || ''}`;
+      window.history.replaceState(null, '', restoredUrl);
+    }
+  } catch {
+    try { sessionStorage.removeItem(githubPagesRouteKey); } catch {}
+  }
+
+  let pathname = window.location.pathname;
+  if (basePath && (pathname === basePath || pathname.startsWith(`${basePath}/`))) {
+    pathname = pathname.slice(basePath.length) || '/';
+  }
+  return normalizePath(pathname);
+}
+
+const path = currentRoutePath();
+
+function applyBasePathToRenderedPage() {
+  if (!basePath) return;
+  document.querySelectorAll('[href], [src], [srcset], [action]').forEach(element => {
+    for (const attribute of ['href', 'src', 'action']) {
+      const value = element.getAttribute(attribute);
+      if (value?.startsWith('/') && !value.startsWith('//')) element.setAttribute(attribute, sitePath(value));
+    }
+    const srcset = element.getAttribute('srcset');
+    if (srcset) {
+      element.setAttribute('srcset', srcset.split(',').map(candidate => {
+        const [url, ...descriptor] = candidate.trim().split(/\s+/);
+        return [sitePath(url), ...descriptor].join(' ');
+      }).join(', '));
+    }
+  });
 }
 
 function escapeHtml(value = '') {
@@ -113,6 +163,7 @@ function pageShell(active, content, pageClass = '') {
   initTabs();
   initPricingFocus();
   setActiveLinks(active);
+  applyBasePathToRenderedPage();
 }
 
 function setActiveLinks(active) {
@@ -137,14 +188,14 @@ function setPageMeta(title, description, type = 'website', image = '/images/leo-
   const ogType = document.querySelector('meta[property="og:type"]');
   if (ogType) ogType.content = type;
   const ogImage = document.querySelector('meta[property="og:image"]');
-  if (ogImage) ogImage.content = new URL(image, window.location.origin).href;
+  if (ogImage) ogImage.content = new URL(sitePath(image), window.location.origin).href;
   let canonical = document.querySelector('link[rel="canonical"]');
   if (!canonical) {
     canonical = document.createElement('link');
     canonical.rel = 'canonical';
     document.head.append(canonical);
   }
-  canonical.href = `${window.location.origin}${path}`;
+  canonical.href = `${window.location.origin}${sitePath(path)}`;
 }
 
 function button(label, href, style = 'yellow') {
@@ -153,7 +204,7 @@ function button(label, href, style = 'yellow') {
 
 function responsiveImage(folder, base, alt, { sizes = '100vw', width = 1536, height = 1024, className = '', loading = 'lazy' } = {}) {
   const path = `/images/${folder}/${base}`;
-  return `<img${className ? ` class="${className}"` : ''} src="${path}-card.webp" srcset="${path}-card.webp 720w, ${path}.webp 1600w" sizes="${sizes}" width="${width}" height="${height}" alt="${escapeHtml(alt)}" loading="${loading}" decoding="async" />`;
+  return `<img${className ? ` class="${className}"` : ''} src="${sitePath(`${path}-card.webp`)}" srcset="${sitePath(`${path}-card.webp`)} 720w, ${sitePath(`${path}.webp`)} 1600w" sizes="${sizes}" width="${width}" height="${height}" alt="${escapeHtml(alt)}" loading="${loading}" decoding="async" />`;
 }
 
 function sectionHeading(eyebrow, title, copy = '') {
@@ -581,7 +632,7 @@ function initPricingFocus() {
     if (!offer) return;
     buttons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.pricingFocus === slug)));
     cards.forEach(card => card.classList.toggle('is-selected', card.dataset.offerCard === slug));
-    contacts.forEach((link,index) => { link.href = `/contact?type=${encodeURIComponent(offers[index].type)}`; });
+    contacts.forEach((link,index) => { link.href = sitePath(`/contact?type=${encodeURIComponent(offers[index].type)}`); });
     if (status) status.textContent = `Orientation choisie : ${offer.title}`;
   };
   buttons.forEach(button => button.addEventListener('click', () => setFocus(button.dataset.pricingFocus)));

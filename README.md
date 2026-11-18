@@ -39,6 +39,10 @@ Copy `.env.example` as a reference only; never commit actual credentials. The fo
 
 The project targets the Vercel account workspace specified in the brief. Once authenticated with the Vercel CLI, deploy a preview with `npx vercel --scope tleovitch2-8383s-projects`, inspect the preview, then deploy to production with `npx vercel --prod --scope tleovitch2-8383s-projects`. The `vercel.json` rewrite serves deep client routes; `/api/contact` is a serverless function.
 
+## GitHub Pages deployment
+
+The repository includes a GitHub Actions workflow that builds the site with the `/portfolioleo/` base path and publishes `dist/` when `main` changes. In the repository’s **Settings → Pages**, set **Build and deployment → Source** to **GitHub Actions** to enable that workflow. The included `404.html` restores direct links to client-side routes. GitHub Pages does not run `/api/contact`; the form displays the direct-email fallback there.
+
 ## Project notes
 
 - Route inventory and template adaptations: [`docs/page-map.md`](docs/page-map.md).
