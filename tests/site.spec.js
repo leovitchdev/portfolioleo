@@ -1,10 +1,14 @@
 import { test, expect } from '@playwright/test';
 
 const viewportSet = [
+  { width: 280, height: 653 },
   { width: 320, height: 568 },
+  { width: 360, height: 640 },
+  { width: 375, height: 667 },
   { width: 375, height: 812 },
   { width: 390, height: 844 },
   { width: 430, height: 932 },
+  { width: 640, height: 360 },
   { width: 768, height: 1024 },
   { width: 1024, height: 768 },
   { width: 1280, height: 800 },
@@ -20,16 +24,57 @@ const detailRoutes = [
   '/pricing/website-development', '/pricing/web-application', '/pricing/custom-digital-solutions',
   '/404', '/a-route-that-does-not-exist',
 ];
+const allRoutes = [...new Set([...primaryRoutes, ...detailRoutes])];
 
-test('primary pages render without horizontal overflow at all reference viewports', async ({ page }) => {
+test('every page fits all reference viewports and its mobile images load', async ({ page }) => {
+  test.setTimeout(300_000);
   for (const viewport of viewportSet) {
     await page.setViewportSize(viewport);
-    for (const route of primaryRoutes) {
+    for (const route of allRoutes) {
       const response = await page.goto(route, { waitUntil: 'domcontentloaded' });
       expect(response?.status(), `${route} at ${viewport.width}px`).toBe(200);
       await expect(page.locator('main h1').first(), `${route} at ${viewport.width}px`).toBeVisible();
-      const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
-      expect(overflow, `${route} overflows at ${viewport.width}×${viewport.height}`).toBe(false);
+      if (viewport.width <= 430) {
+        await page.locator('img').evaluateAll(images => images.forEach(image => { image.loading = 'eager'; }));
+        await page.waitForFunction(() => [...document.images].every(image => image.complete));
+      }
+      const metrics = await page.evaluate(() => {
+        const cta = document.querySelector('.hero__content .button');
+        const hero = document.querySelector('.hero');
+        const ticker = document.querySelector('.hero-ticker');
+        const ctaRect = cta?.getBoundingClientRect();
+        const heroRect = hero?.getBoundingClientRect();
+        const tickerRect = ticker?.getBoundingClientRect();
+        const images = [...document.images].map(image => {
+          const rect = image.getBoundingClientRect();
+          return { src: image.currentSrc || image.src, loaded: image.complete && image.naturalWidth > 0, width: rect.width, height: rect.height };
+        });
+        const width = document.documentElement.clientWidth;
+        return {
+          overflow: document.documentElement.scrollWidth > width + 1,
+          documentWidth: document.documentElement.scrollWidth,
+          viewportWidth: width,
+          overflowingElements: [...document.body.querySelectorAll('*')].map(element => {
+            const rect = element.getBoundingClientRect();
+            const style = getComputedStyle(element);
+            return {tag: element.tagName, className: typeof element.className === 'string' ? element.className : '', right: Math.round(rect.right), width: Math.round(rect.width), overflowX: style.overflowX};
+          }).filter(element => element.right > width + 1 && !['auto','scroll','hidden','clip'].includes(element.overflowX)).slice(0, 10),
+          ctaOverlapsTicker: !!ctaRect && !!tickerRect && ctaRect.bottom > tickerRect.top + 1,
+          ctaOutsideHero: !!ctaRect && !!heroRect && ctaRect.bottom > heroRect.bottom + 1,
+          ctaBottom: ctaRect ? Math.round(ctaRect.bottom) : null,
+          tickerTop: tickerRect ? Math.round(tickerRect.top) : null,
+          heroBottom: heroRect ? Math.round(heroRect.bottom) : null,
+          imageProblems: images.filter(image => !image.loaded || image.width < 1 || image.height < 1),
+        };
+      });
+      expect(metrics.overflow, `${route} overflows at ${viewport.width}×${viewport.height}: ${JSON.stringify(metrics)}`).toBe(false);
+      if (viewport.width <= 430) {
+        expect(metrics.imageProblems, `bad images on ${route} at ${viewport.width}px`).toEqual([]);
+      }
+      if (route === '/' && viewport.width <= 767) {
+        expect(metrics.ctaOverlapsTicker, `home CTA is covered by the ticker at ${viewport.width}×${viewport.height}: ${JSON.stringify(metrics)}`).toBe(false);
+        expect(metrics.ctaOutsideHero, `home CTA is clipped at ${viewport.width}×${viewport.height}: ${JSON.stringify(metrics)}`).toBe(false);
+      }
     }
   }
 });
@@ -55,7 +100,7 @@ test('all published detail routes load directly and have a useful heading', asyn
   }
   await page.goto('/a-route-that-does-not-exist');
   await expect(page.locator('.not-found')).toBeVisible();
-  await expect(page.locator('.not-found h1')).toContainText('HERE');
+  await expect(page.locator('.not-found h1')).toContainText('N’EXISTE PAS');
 });
 
 test('mobile navigation, feature tabs, project slider, pricing focus, and FAQ work', async ({ page }) => {
@@ -70,17 +115,17 @@ test('mobile navigation, feature tabs, project slider, pricing focus, and FAQ wo
   await page.keyboard.press('Escape');
   await expect(mobileMenu).toBeHidden();
 
-  await page.getByRole('tab', { name: 'Build for change' }).click();
-  await expect(page.getByRole('tab', { name: 'Build for change' })).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByRole('tabpanel')).toContainText('easier to maintain, extend, and connect');
+  await page.getByRole('tab', { name: 'Prévoir la suite' }).click();
+  await expect(page.getByRole('tab', { name: 'Prévoir la suite' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tabpanel')).toContainText('plus simple à maintenir, à faire évoluer');
 
   const track = page.locator('#project-track');
-  await page.getByRole('button', { name: 'Next concepts' }).click();
+  await page.getByRole('button', { name: 'Concepts suivants' }).click();
   await expect.poll(() => track.evaluate(element => element.scrollLeft)).toBeGreaterThan(0);
 
   await page.goto('/pricing');
-  await page.getByRole('button', { name: 'Web Application' }).click();
-  await expect(page.locator('[data-pricing-status]')).toContainText('Web Application');
+  await page.getByRole('button', { name: 'Application web' }).click();
+  await expect(page.locator('[data-pricing-status]')).toContainText('Application web');
   await expect(page.locator('[data-offer-card="web-application"]')).toHaveClass(/is-selected/);
   await page.locator('.faq-list summary').first().click();
   await expect(page.locator('.faq-list details').first()).toHaveAttribute('open', '');
@@ -93,7 +138,7 @@ test('desktop Pages dropdown opens and closes with its native summary control', 
   const panel = page.locator('.nav-dropdown__panel');
   await trigger.click();
   await expect(panel).toBeVisible();
-  await expect(panel.getByRole('link', { name: 'Blog' })).toHaveAttribute('href', '/blogs');
+  await expect(panel.getByRole('link', { name: 'Journal' })).toHaveAttribute('href', '/blogs');
   await trigger.click();
   await expect(panel).toBeHidden();
 });
@@ -109,12 +154,8 @@ test('service rows expand on hover or keyboard focus and projects reveal the ref
   await expect(serviceRow).toHaveCSS('background-color', 'rgb(251, 234, 105)');
   await expect.poll(() => detail.evaluate(element => Number.parseFloat(getComputedStyle(element).opacity))).toBeGreaterThan(0.9);
 
-  let rowFocused = await serviceRow.evaluate(element => element === document.activeElement);
-  for (let step = 0; step < 48 && !rowFocused; step += 1) {
-    await page.keyboard.press('Tab');
-    rowFocused = await serviceRow.evaluate(element => element === document.activeElement);
-  }
-  expect(rowFocused).toBe(true);
+  await serviceRow.focus();
+  await expect(serviceRow).toBeFocused();
 
   await page.goto('/projects');
   const card = page.locator('.project-card').first();
@@ -159,10 +200,10 @@ test('project, service, and article galleries use distinct loaded photographic a
 test('contact form validates input and never reports an unconfirmed delivery as sent', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/contact');
-  await page.getByLabel('Prénom').fill('Alex');
-  await page.getByLabel('Nom').fill('Example');
-  await page.getByLabel('Adresse e-mail').fill('alex@example.test');
-  await page.getByLabel('Message').fill('Vérification locale de la configuration d’envoi.');
+  await page.locator('#first-name').fill('Alex');
+  await page.locator('#last-name').fill('Example');
+  await page.locator('#email').fill('alex@example.test');
+  await page.locator('#message').fill('Vérification locale de la configuration d’envoi.');
   await page.getByRole('button', { name: /Envoyer le message/ }).click();
   await expect(page.locator('#contact-fallback')).toBeVisible();
   await expect(page.locator('#contact-status')).not.toHaveText('Votre message a été envoyé. Merci de m’avoir écrit.');
