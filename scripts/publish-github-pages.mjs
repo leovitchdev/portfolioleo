@@ -1,8 +1,18 @@
 import { cp, readdir, rm } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url)).replace(/[\\/]scripts$/, '');
+const build = spawnSync(process.execPath, [path.join(projectRoot, 'node_modules', 'vite', 'bin', 'vite.js'), 'build'], {
+  cwd: projectRoot,
+  env: { ...process.env, GITHUB_PAGES: 'true' },
+  stdio: 'inherit',
+});
+
+if (build.error) throw build.error;
+if (build.status !== 0) throw new Error(`Le build GitHub Pages a échoué (${build.status ?? build.signal}).`);
+
 const buildDir = path.join(projectRoot, 'dist');
 const generatedAssetDir = path.join(projectRoot, 'site-assets');
 const entries = await readdir(buildDir);
