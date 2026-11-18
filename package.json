@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
+    "publish:github-pages": "node scripts/publish-github-pages.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "test": "npm run build && playwright test && node --test tests/contact-handler.test.js",
     "capture": "npm run build && node scripts/capture.mjs",

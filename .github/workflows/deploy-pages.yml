@@ -6,22 +6,22 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
-  group: github-pages
-  cancel-in-progress: true
+  group: github-pages-main-root
+  cancel-in-progress: false
 
 jobs:
-  build:
+  build-and-publish:
     runs-on: ubuntu-latest
     env:
       GITHUB_PAGES: 'true'
     steps:
       - name: Récupérer le dépôt
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - name: Installer Node.js
         uses: actions/setup-node@v4
         with:
@@ -29,22 +29,18 @@ jobs:
           cache: npm
       - name: Installer les dépendances
         run: npm ci
-      - name: Préparer GitHub Pages
-        uses: actions/configure-pages@v5
       - name: Compiler le site
         run: npm run build
-      - name: Charger le site compilé
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: dist
-
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Publier sur GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Préparer les fichiers servis par la branche main
+        run: npm run publish:github-pages
+      - name: Publier les fichiers compilés sur main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A -- .nojekyll 404.html index.html robots.txt sitemap.xml icons images site-assets
+          if git diff --cached --quiet; then
+            echo "Les fichiers publiés sont déjà à jour."
+          else
+            git commit -m "Publish compiled GitHub Pages site [skip ci]"
+            git push origin HEAD:main
+          fi

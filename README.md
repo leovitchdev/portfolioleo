@@ -41,7 +41,7 @@ The project targets the Vercel account workspace specified in the brief. Once au
 
 ## GitHub Pages deployment
 
-The repository includes a GitHub Actions workflow that builds the site with the `/portfolioleo/` base path and publishes `dist/` when `main` changes. In the repository’s **Settings → Pages**, set **Build and deployment → Source** to **GitHub Actions** to enable that workflow. The included `404.html` restores direct links to client-side routes. GitHub Pages does not run `/api/contact`; the form displays the direct-email fallback there.
+GitHub Pages is configured to serve the `main` branch from its root. The Actions workflow builds the site with the `/portfolioleo/` base path, copies the compiled `dist/` output to that root, and pushes the generated files so Pages can serve them. For a manual publish, run `npm run build` and then `npm run publish:github-pages`, and commit the generated root files. The included `404.html` restores direct links to client-side routes. GitHub Pages does not run `/api/contact`; the form displays the direct-email fallback there.
 
 ## Project notes
 
