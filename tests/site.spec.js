@@ -131,6 +131,31 @@ test('mobile navigation, feature tabs, project slider, pricing focus, and FAQ wo
   await expect(page.locator('.faq-list details').first()).toHaveAttribute('open', '');
 });
 
+test('home work section and concept images keep their design at desktop and mobile sizes', async ({ page }) => {
+  for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport);
+    await page.goto('/');
+    const layout = await page.evaluate(() => {
+      const image = document.querySelector('.profile-image-wrap').getBoundingClientRect();
+      const content = document.querySelector('.profile-content').getBoundingClientRect();
+      const photo = document.querySelector('.project-track .project-photo').getBoundingClientRect();
+      return {
+        imageX: image.x,
+        imageY: image.y,
+        contentX: content.x,
+        contentY: content.y,
+        photoRatio: photo.width / photo.height,
+      };
+    });
+    expect(layout.photoRatio).toBeCloseTo(0.77, 2);
+    if (viewport.width < 768) {
+      expect(layout.contentY).toBeLessThan(layout.imageY);
+    } else {
+      expect(layout.imageX).toBeLessThan(layout.contentX);
+    }
+  }
+});
+
 test('desktop Pages dropdown opens and closes with its native summary control', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
